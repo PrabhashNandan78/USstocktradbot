@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "TradingView Paper Trading Automated Bridge",
+  "version": "3.0.0",
+  "description": "Multi-Stock Bullish Trading Bot Bridge for TradingView Paper Trading automation, verification, and monitoring.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.tradingview.com/*",
+    "http://127.0.0.1:8000/*",
+    "ws://127.0.0.1:8000/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.tradingview.com/chart/*",
+        "*://*.tradingview.com/*"
+      ],
+      "js": [
+        "dom_selectors.js",
+        "paper_trading.js",
+        "order_executor.js",
+        "position_tracker.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

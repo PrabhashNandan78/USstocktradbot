@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>TradingView Bridge</title>
+  <style>
+    body {
+      width: 300px;
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #111827;
+      color: #f3f4f6;
+    }
+    h2 {
+      margin: 0 0 12px 0;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-card {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .row:last-child {
+      margin-bottom: 0;
+    }
+    .val {
+      font-weight: 600;
+    }
+    .ok { color: #10b981; }
+    .warn { color: #f59e0b; }
+    .err { color: #ef4444; }
+    .btn {
+      width: 100%;
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:hover { background: #1d4ed8; }
+  </style>
+</head>
+<body>
+  <h2>🚀 Antigravity TV Bridge</h2>
+  
+  <div class="status-card">
+    <div class="row">
+      <span>Backend:</span>
+      <span id="backend-status" class="val">Checking...</span>
+    </div>
+    <div class="row">
+      <span>TradingView Tab:</span>
+      <span id="tv-tab-status" class="val">No</span>
+    </div>
+    <div class="row">
+      <span>Paper Trading:</span>
+      <span id="pt-status" class="val">No</span>
+    </div>
+    <div class="row">
+      <span>Current Symbol:</span>
+      <span id="symbol-status" class="val">-</span>
+    </div>
+  </div>
+
+  <button id="open-dashboard-btn" class="btn">Open Trading Bot Dashboard</button>
+
+  <script src="popup.js"></script>
+</body>
+</html>

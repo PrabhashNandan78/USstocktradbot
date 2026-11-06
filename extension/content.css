@@ -1,0 +1,83 @@
+#antigravity-bridge-badge {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999999;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 20px;
+  padding: 6px 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.antigravity-badge-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.antigravity-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.antigravity-badge-connected {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  color: #10b981;
+}
+.antigravity-badge-connected .antigravity-badge-dot {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.antigravity-badge-warning {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #f59e0b;
+}
+.antigravity-badge-warning .antigravity-badge-dot {
+  background: #f59e0b;
+}
+
+.antigravity-badge-danger {
+  background: rgba(239, 68, 68, 0.25);
+  border: 1px solid rgba(239, 68, 68, 0.8);
+  color: #ef4444;
+}
+.antigravity-badge-danger .antigravity-badge-dot {
+  background: #ef4444;
+  box-shadow: 0 0 10px #ef4444;
+}
+
+.antigravity-badge-disconnected {
+  background: rgba(107, 114, 128, 0.2);
+  border: 1px solid rgba(107, 114, 128, 0.4);
+  color: #9ca3af;
+}
+.antigravity-badge-disconnected .antigravity-badge-dot {
+  background: #6b7280;
+}
+
+.antigravity-banner {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000000;
+  padding: 12px 24px;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+.antigravity-banner-danger {
+  background: #dc2626;
+}

@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity Multi-Stock Bullish Trading System</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-badge">⚡</div>
+      <div>
+        <div class="logo-title">Antigravity Bot</div>
+        <div class="logo-subtitle">US Equities • Multi-Stock</div>
+      </div>
+    </div>
+
+    <ul class="nav-links">
+      <li class="nav-item">
+        <a class="nav-link active" data-view="overview">
+          <span>📊</span> Overview
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="scanner">
+          <span>🔍</span> Stock Scanner
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="signals">
+          <span>🎯</span> Generated Signals
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="active-trades">
+          <span>⚡</span> Active Positions
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="trade-history">
+          <span>📜</span> Trade History
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="analytics">
+          <span>📈</span> Performance Analytics
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="test-center">
+          <span>🧪</span> Integration Test Centre
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="settings">
+          <span>⚙️</span> Settings & Connections
+        </a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <button id="global-kill-switch" class="kill-switch-btn">
+        🛑 EMERGENCY KILL SWITCH
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main View Container -->
+  <main class="main-wrapper">
+    
+    <!-- Top System Status Bar -->
+    <div class="top-bar">
+      <div class="page-title">
+        <h1 id="view-title">System Overview</h1>
+        <p id="view-desc">Live status, broker connection, and portfolio performance</p>
+      </div>
+      <div class="top-controls">
+        <span id="market-status-badge" class="status-badge badge-connected">US Market: Open</span>
+        <button id="manual-scan-top-btn" class="btn btn-primary">🔍 Scan Universe Now</button>
+      </div>
+    </div>
+
+    <!-- 1. OVERVIEW SECTION -->
+    <section id="section-overview" class="view-section active">
+      <div class="status-grid">
+        <div class="card">
+          <div class="card-label">Alpaca Market Data</div>
+          <div class="card-value" id="ov-alpaca-status">
+            <span class="status-badge badge-disconnected">Checking...</span>
+          </div>
+          <div class="card-subtext" id="ov-alpaca-feed">Feed: IEX</div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">TradingView Extension</div>
+          <div class="card-value" id="ov-extension-status">
+            <span class="status-badge badge-disconnected">Offline</span>
+          </div>
+          <div class="card-subtext" id="ov-extension-symbol">Active Symbol: -</div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Paper Trading Environment</div>
+          <div class="card-value" id="ov-paper-status">
+            <span class="status-badge badge-disconnected">Unverified</span>
+          </div>
+          <div class="card-subtext" id="ov-broker-name">Broker: None</div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Telegram Notifications</div>
+          <div class="card-value" id="ov-telegram-status">
+            <span class="status-badge badge-disconnected">Not Configured</span>
+          </div>
+          <div class="card-subtext" id="ov-telegram-time">Last Alert: Never</div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Stock Scanner</div>
+          <div class="card-value" id="ov-scanner-status">
+            <span class="status-badge badge-connected">Idle</span>
+          </div>
+          <div class="card-subtext" id="ov-scanner-details">Universe: 0 Analyzed</div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Active Positions</div>
+          <div class="card-value" id="ov-active-count">0</div>
+          <div class="card-subtext" id="ov-unrealized-pnl">Unrealized: $0.00</div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Realized P&L (Total)</div>
+          <div class="card-value" id="ov-net-pnl">$0.00</div>
+          <div class="card-subtext" id="ov-winrate">Win Rate: 0.0%</div>
+        </div>
+      </div>
+
+      <!-- Overview Quick Tables -->
+      <div class="actions-bar">
+        <h3>Live Active Positions</h3>
+        <button id="refresh-overview-btn" class="btn btn-secondary">🔄 Refresh</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Side</th>
+              <th>Quantity</th>
+              <th>Entry Price</th>
+              <th>Current Price</th>
+              <th>Stop Loss</th>
+              <th>Take Profit</th>
+              <th>Unrealized P&L</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="overview-positions-tbody">
+            <tr><td colspan="9" style="text-align:center; color:var(--text-dim);">No active positions currently executing on TradingView Paper Trading.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 2. STOCK SCANNER SECTION -->
+    <section id="section-scanner" class="view-section">
+      <div class="actions-bar">
+        <div>
+          <button id="scanner-start-btn" class="btn btn-success">▶ Start Automated Scanner</button>
+          <button id="scanner-stop-btn" class="btn btn-secondary">⏸ Pause Scanner</button>
+          <button id="scanner-now-btn" class="btn btn-primary">⚡ Scan Once Now</button>
+        </div>
+        <div id="scanner-runtime-stats" style="font-size: 13px; color: var(--text-muted);">
+          Status: <strong id="sc-status-text">Idle</strong> | Last Scan: <span id="sc-last-scan">Never</span>
+        </div>
+      </div>
+
+      <div class="status-grid" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="card">
+          <div class="card-label">Universe Candidates</div>
+          <div class="card-value" id="sc-total-candidates">0</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Filtered by Liquidity</div>
+          <div class="card-value" id="sc-filtered-count">0</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Strategy Qualified</div>
+          <div class="card-value positive" id="sc-qualified-count">0</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Rejections</div>
+          <div class="card-value negative" id="sc-rejected-count">0</div>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom: 12px;">Strategy Qualified Stocks (Ready for Execution)</h3>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Action</th>
+              <th>Entry</th>
+              <th>Stop Loss</th>
+              <th>Take Profit</th>
+              <th>Risk/Reward</th>
+              <th>Score (100)</th>
+              <th>Demand Zone</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="scanner-qualified-tbody">
+            <tr><td colspan="9" style="text-align:center; color:var(--text-dim);">No qualified setups currently detected. Click 'Scan Once Now' to evaluate.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-bottom: 12px;">Universe Scan Breakdown & Rejection Reasons</h3>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Status</th>
+              <th>Score</th>
+              <th>Evaluation / Rejection Reason</th>
+            </tr>
+          </thead>
+          <tbody id="scanner-rejections-tbody">
+            <tr><td colspan="4" style="text-align:center; color:var(--text-dim);">No scan telemetry available.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 3. GENERATED SIGNALS SECTION -->
+    <section id="section-signals" class="view-section">
+      <div class="actions-bar">
+        <h3>Signal Stream & Execution Pipeline</h3>
+        <button id="refresh-signals-btn" class="btn btn-secondary">🔄 Refresh Signals</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Signal ID</th>
+              <th>Symbol</th>
+              <th>Direction</th>
+              <th>Entry Price</th>
+              <th>SL</th>
+              <th>TP</th>
+              <th>RR</th>
+              <th>Score</th>
+              <th>Status</th>
+              <th>Created At</th>
+              <th>Dispatch</th>
+            </tr>
+          </thead>
+          <tbody id="signals-tbody">
+            <tr><td colspan="11" style="text-align:center; color:var(--text-dim);">No signals generated yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 4. ACTIVE TRADES SECTION -->
+    <section id="section-active-trades" class="view-section">
+      <div class="actions-bar">
+        <h3>Real-time Paper Trading Positions</h3>
+        <button id="refresh-active-trades-btn" class="btn btn-secondary">🔄 Refresh</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Trade ID</th>
+              <th>Side</th>
+              <th>Quantity</th>
+              <th>Executed Entry</th>
+              <th>Current Price</th>
+              <th>Stop Loss</th>
+              <th>Take Profit</th>
+              <th>Unrealized P&L</th>
+              <th>Updated</th>
+            </tr>
+          </thead>
+          <tbody id="active-trades-tbody">
+            <tr><td colspan="10" style="text-align:center; color:var(--text-dim);">No open trades in TradingView Paper Trading.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 5. TRADE HISTORY SECTION -->
+    <section id="section-trade-history" class="view-section">
+      <div class="actions-bar">
+        <div style="display:flex; gap:12px;">
+          <input type="text" id="history-filter-symbol" class="form-control" placeholder="Search by Symbol (e.g. AAPL)" style="width:250px;">
+          <button id="history-search-btn" class="btn btn-primary">Filter</button>
+        </div>
+        <button id="refresh-history-btn" class="btn btn-secondary">🔄 Refresh History</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Trade ID</th>
+              <th>Symbol</th>
+              <th>Side</th>
+              <th>Entry</th>
+              <th>Exit Price</th>
+              <th>Quantity</th>
+              <th>Exit Reason</th>
+              <th>Gross P&L</th>
+              <th>Net P&L</th>
+              <th>Return %</th>
+              <th>Holding Duration</th>
+              <th>Closed At</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <tr><td colspan="12" style="text-align:center; color:var(--text-dim);">No closed trade history yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 6. PERFORMANCE ANALYTICS SECTION -->
+    <section id="section-analytics" class="view-section">
+      <div class="status-grid">
+        <div class="card">
+          <div class="card-label">Win Rate</div>
+          <div class="card-value positive" id="an-winrate">0.0%</div>
+          <div class="card-subtext" id="an-win-loss-count">0 Wins / 0 Losses</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Profit Factor</div>
+          <div class="card-value" id="an-profit-factor">0.00</div>
+          <div class="card-subtext">Target: > 1.5</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Net Realized P&L</div>
+          <div class="card-value" id="an-net-pnl">$0.00</div>
+          <div class="card-subtext" id="an-gross-pnl">Gross: $0.00 | Fees: $0.00</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Max Drawdown</div>
+          <div class="card-value negative" id="an-max-dd">$0.00</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Average Profit</div>
+          <div class="card-value positive" id="an-avg-win">$0.00</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Average Loss</div>
+          <div class="card-value negative" id="an-avg-loss">$0.00</div>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="table-container">
+          <h4 style="padding:16px 16px 8px 16px;">Performance by Symbol</h4>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Total Trades</th>
+                <th>Win Rate</th>
+                <th>Net P&L</th>
+              </tr>
+            </thead>
+            <tbody id="analytics-by-stock-tbody">
+              <tr><td colspan="4" style="text-align:center; color:var(--text-dim);">No closed trades recorded.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-container">
+          <h4 style="padding:16px 16px 8px 16px;">Performance by Signal Score Tier</h4>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Score Tier</th>
+                <th>Trades</th>
+                <th>Wins</th>
+                <th>Net P&L</th>
+              </tr>
+            </thead>
+            <tbody id="analytics-by-score-tbody">
+              <tr><td colspan="4" style="text-align:center; color:var(--text-dim);">No score telemetry recorded.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. INTEGRATION TEST CENTRE SECTION -->
+    <section id="section-test-center" class="view-section">
+      <div class="card" style="margin-bottom: 20px;">
+        <h3 style="margin-bottom: 6px;">Integration Test Centre</h3>
+        <p style="color: var(--text-muted); font-size: 13px;">
+          Execute isolated live connectivity tests and complete end-to-end simulation pipelines.
+        </p>
+      </div>
+
+      <div class="test-grid">
+        <button id="test-btn-alpaca" class="btn btn-primary">🧪 Test Alpaca API</button>
+        <button id="test-btn-telegram" class="btn btn-primary">🧪 Test Telegram Bot</button>
+        <button id="test-btn-extension" class="btn btn-primary">🧪 Test Extension</button>
+        <button id="test-btn-paper" class="btn btn-primary">🧪 Test Paper Trading</button>
+        <button id="test-btn-e2e" class="btn btn-success">⚡ Test End-to-End Workflow</button>
+      </div>
+
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-label">Live Diagnostic Test Console</div>
+        <div id="test-console-output" class="console-output">Ready. Click any test button above to execute verification.</div>
+      </div>
+
+      <h3 style="margin-bottom: 12px;">Test Audit Log</h3>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Suite</th>
+              <th>Status</th>
+              <th>Executed At</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody id="test-history-tbody">
+            <tr><td colspan="4" style="text-align:center; color:var(--text-dim);">No test executions logged.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 8. SETTINGS SECTION -->
+    <section id="section-settings" class="view-section">
+      <div class="form-grid">
+        <!-- Alpaca Credentials Card -->
+        <div class="card">
+          <h3>Alpaca Market Data Configuration</h3>
+          <p class="form-help" style="margin-bottom: 16px;">
+            Market data only. Feeds: IEX (Free/Standard) or SIP (Consolidated Exchange Tape).
+          </p>
+          <div class="form-group">
+            <label>Alpaca API Key ID</label>
+            <input type="text" id="alpaca-api-key" class="form-control" placeholder="Enter Alpaca API Key">
+          </div>
+          <div class="form-group">
+            <label>Alpaca API Secret Key</label>
+            <input type="password" id="alpaca-secret-key" class="form-control" placeholder="Enter Alpaca Secret Key">
+          </div>
+          <div class="form-group">
+            <label>Market Data Feed Selection</label>
+            <select id="alpaca-feed-select" class="form-control">
+              <option value="iex">IEX (Investors Exchange - Default/Free)</option>
+              <option value="sip">SIP (Securities Information Processor - Full Tape)</option>
+            </select>
+            <div class="form-help">Clearly note: IEX provides partial volume compared to full consolidated tape.</div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button id="alpaca-test-btn" class="btn btn-secondary">Test Connection</button>
+            <button id="alpaca-save-btn" class="btn btn-primary">Save Credentials</button>
+          </div>
+          <div id="alpaca-status-msg" style="margin-top:12px; font-size:12px;"></div>
+        </div>
+
+        <!-- Telegram Credentials Card -->
+        <div class="card">
+          <h3>Telegram Bot Notifications</h3>
+          <p class="form-help" style="margin-bottom: 16px;">
+            Sends two mandatory notifications: Signal Dispatched & Trade Closed.
+          </p>
+          <div class="form-group">
+            <label>Telegram Bot Token</label>
+            <input type="password" id="telegram-bot-token" class="form-control" placeholder="e.g. 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
+          </div>
+          <div class="form-group">
+            <label>Telegram Chat ID</label>
+            <input type="text" id="telegram-chat-id" class="form-control" placeholder="e.g. 987654321 or @yourchannel">
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button id="telegram-test-btn" class="btn btn-secondary">Test Delivery</button>
+            <button id="telegram-save-btn" class="btn btn-primary">Save Settings</button>
+          </div>
+          <div id="telegram-status-msg" style="margin-top:12px; font-size:12px;"></div>
+        </div>
+
+        <!-- Scanner Configuration Card -->
+        <div class="card">
+          <h3>Stock Scanner Parameters</h3>
+          <div class="form-group">
+            <label>Minimum Stock Price ($)</label>
+            <input type="number" id="sc-cfg-min-price" class="form-control" value="10.0" step="0.5">
+          </div>
+          <div class="form-group">
+            <label>Minimum Daily Volume (Shares)</label>
+            <input type="number" id="sc-cfg-min-vol" class="form-control" value="100000" step="10000">
+          </div>
+          <div class="form-group">
+            <label>Minimum Dollar Volume ($)</label>
+            <input type="number" id="sc-cfg-dollar-vol" class="form-control" value="2000000" step="100000">
+          </div>
+          <div class="form-group">
+            <label>Max Stocks to Analyze</label>
+            <input type="number" id="sc-cfg-max-stocks" class="form-control" value="20">
+          </div>
+          <div class="form-group">
+            <label>Scan Interval (Seconds)</label>
+            <input type="number" id="sc-cfg-interval" class="form-control" value="300">
+          </div>
+          <div class="form-group">
+            <label>Custom Watchlist (Comma separated, empty for auto-universe)</label>
+            <input type="text" id="sc-cfg-watchlist" class="form-control" placeholder="AAPL, MSFT, NVDA, TSLA, AMZN">
+          </div>
+          <button id="scanner-save-cfg-btn" class="btn btn-primary">Save Scanner Config</button>
+        </div>
+
+        <!-- Strategy Parameters Card -->
+        <div class="card">
+          <h3>Deterministic Strategy Parameters</h3>
+          <div class="form-group">
+            <label>Minimum Entry Score (out of 100)</label>
+            <input type="number" id="strat-min-score" class="form-control" value="60" min="50" max="100">
+          </div>
+          <div class="form-group">
+            <label>Minimum Risk / Reward Ratio</label>
+            <input type="number" id="strat-min-rr" class="form-control" value="2.0" step="0.1" min="1.5">
+          </div>
+          <div class="form-group">
+            <label>Default Trading Quantity (Shares)</label>
+            <input type="number" id="strat-quantity" class="form-control" value="1" min="1">
+          </div>
+          <button id="strategy-save-cfg-btn" class="btn btn-primary">Save Strategy Config</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Dashboard JavaScript Modules -->
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/dashboard.js"></script>
+  <script src="/static/js/scanner_ui.js"></script>
+  <script src="/static/js/trades_ui.js"></script>
+  <script src="/static/js/settings_ui.js"></script>
+  <script src="/static/js/test_center_ui.js"></script>
+</body>
+</html>
