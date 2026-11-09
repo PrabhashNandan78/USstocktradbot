@@ -26,12 +26,17 @@ const OrderExecutor = {
         throw new Error(env.error_message || 'TradingView Paper Trading is not active or verified.');
       }
 
-      // Pre-flight 2: Switch Symbol if needed
-      const requestedSymbol = orderRequest.symbol.toUpperCase();
-      if (env.current_symbol !== requestedSymbol) {
-        console.log(`[OrderExecutor] Active symbol is ${env.current_symbol}, switching to ${requestedSymbol}...`);
-        await this.switchSymbol(requestedSymbol);
-        await this.sleep(1500);
+      // Pre-flight 2: Validate TradingView Symbol Match (Strict Safety Check)
+      const requestedSymbol = (orderRequest.symbol || '').toUpperCase();
+      const symCheck = window.PaperTradingGuard.validateSymbolMatch(requestedSymbol, env.raw_tv_symbol);
+      if (!symCheck.valid) {
+        console.error('[OrderExecutor] Symbol mismatch:', symCheck.reason);
+        return {
+          success: false,
+          signal_id: orderRequest.signal_id,
+          symbol: requestedSymbol,
+          error_message: symCheck.reason
+        };
       }
 
       // Pre-flight 3: Open Order Ticket Panel
@@ -243,3 +248,4 @@ const OrderExecutor = {
 };
 
 window.OrderExecutor = OrderExecutor;
+

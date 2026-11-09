@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from typing import Dict, Any, List
 
 from backend.database import get_db_connection, log_system_event
-from backend.alpaca_client import AlpacaClient
+from backend.tradingview_client import TradingViewClient
 from backend.telegram_bot import TelegramNotifier
 from backend.execution_bridge import bridge
 from backend.strategy.engine import StrategyEngine
@@ -47,9 +47,18 @@ def get_test_history(limit: int = 50):
         results.append(d)
     return results
 
+@router.post("/tradingview")
+def test_tradingview_integration():
+    client = TradingViewClient()
+    res = client.test_connection()
+    status = "PASSED" if res.get("success") else "FAILED"
+    record_test_result("TRADINGVIEW", status, res)
+    return res
+
 @router.post("/alpaca")
 def test_alpaca_integration():
-    client = AlpacaClient()
+    # Backwards-compatible route for market data testing
+    client = TradingViewClient()
     res = client.test_connection()
     status = "PASSED" if res.get("success") else "FAILED"
     record_test_result("ALPACA", status, res)
@@ -176,6 +185,7 @@ async def test_end_to_end_workflow():
 
     # Step 2: Signal Creation & Duplicate Protection Check
     sig_data = analysis["signal"]
+    sig_data["trade_source"] = "TEST_SIMULATION"
     created_sig = SignalManager.create_signal(sig_data)
     if not created_sig:
         test_report["steps"].append({"step": "Signal Creation", "success": False, "error": "Signal creation blocked as duplicate"})
@@ -246,3 +256,4 @@ async def test_end_to_end_workflow():
     test_report["overall_success"] = True
     record_test_result("E2E", "PASSED", test_report)
     return test_report
+

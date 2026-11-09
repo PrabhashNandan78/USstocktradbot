@@ -156,3 +156,4 @@ def test_full_strategy_engine_execution():
     assert sig["stop_loss"] < 112.0 # Zone low - 0.2*ATR
     assert sig["take_profit"] == 150.0 # 1H swing high
     assert sig["risk_reward"] >= 2.0
+

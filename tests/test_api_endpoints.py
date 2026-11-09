@@ -22,6 +22,22 @@ def test_get_settings(client):
     assert "telegram" in data
     assert "strategy" in data
 
+def test_market_endpoints(client):
+    res = client.get("/api/market/status")
+    assert res.status_code == 200
+    data = res.json()
+    assert "status" in data
+    assert data["status"] in ("OPEN", "PRE_MARKET", "AFTER_HOURS", "CLOSED", "HOLIDAY")
+    assert "ny_time" in data
+    assert "next_market_open" in data
+    assert "next_market_close" in data
+
+    diag_res = client.get("/api/market/diagnostics")
+    assert diag_res.status_code == 200
+    diag_data = diag_res.json()
+    assert "market_status" in diag_data
+    assert "market_data_diagnostics" in diag_data
+
 def test_scanner_endpoints(client):
     cfg_res = client.get("/api/scanner/config")
     assert cfg_res.status_code == 200
@@ -78,3 +94,4 @@ def test_integration_test_endpoints(client):
     hist_res = client.get("/api/tests/history")
     assert hist_res.status_code == 200
     assert len(hist_res.json()) > 0
+

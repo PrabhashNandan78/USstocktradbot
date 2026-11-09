@@ -94,19 +94,93 @@ function setupKillSwitch() {
 
 async function refreshOverview() {
   try {
+    // 0. Fetch US Market Status & New York Time
+    try {
+      const market = await window.API.getMarketStatus();
+      const badgeEl = document.getElementById('market-status-badge');
+      const nyTimeEl = document.getElementById('ny-time-display');
+      const nextEventEl = document.getElementById('market-next-event');
+
+      if (badgeEl && market) {
+        let badgeClass = 'badge-disconnected';
+        let badgeText = `US Market: ${market.status}`;
+
+        if (market.status === 'OPEN') {
+          badgeClass = 'badge-connected';
+          badgeText = 'US Market: Open';
+        } else if (market.status === 'PRE_MARKET') {
+          badgeClass = 'badge-warning';
+          badgeText = 'US Market: Pre-Market';
+        } else if (market.status === 'AFTER_HOURS') {
+          badgeClass = 'badge-warning';
+          badgeText = 'US Market: After-Hours';
+        } else if (market.status === 'HOLIDAY') {
+          badgeClass = 'badge-danger';
+          badgeText = `US Market: Holiday (${market.holiday_name || 'Closed'})`;
+        } else if (market.status === 'CLOSED') {
+          badgeClass = 'badge-disconnected';
+          badgeText = `US Market: Closed (${market.session_type === 'WEEKEND' ? 'Weekend' : 'Off-Hours'})`;
+        }
+
+        badgeEl.className = `status-badge ${badgeClass}`;
+        badgeEl.innerText = badgeText;
+      }
+
+      if (nyTimeEl && market.ny_time) {
+        const timeStr = market.ny_time.substring(11, 19);
+        nyTimeEl.innerText = `NY: ${timeStr} ET`;
+      }
+
+      if (nextEventEl && market) {
+        if (market.status === 'OPEN') {
+          const closeTime = market.next_market_close ? market.next_market_close.substring(11, 16) : '16:00';
+          nextEventEl.innerText = `Closes: ${closeTime} ET`;
+        } else {
+          const openDate = market.next_market_open ? market.next_market_open.substring(5, 10) : '';
+          const openTime = market.next_market_open ? market.next_market_open.substring(11, 16) : '09:30';
+          nextEventEl.innerText = `Opens: ${openDate} ${openTime} ET`;
+        }
+      }
+    } catch (mErr) {
+      console.warn('Failed to fetch market status:', mErr);
+    }
+
     // 1. Fetch Settings & Connection States
     const settings = await window.API.getSettings();
-    const alpaca = settings.alpaca || {};
     const telegram = settings.telegram || {};
 
-    const alpacaStatusEl = document.getElementById('ov-alpaca-status');
-    const alpacaFeedEl = document.getElementById('ov-alpaca-feed');
-    if (alpaca.status && alpaca.status.status === 'CONNECTED') {
-      alpacaStatusEl.innerHTML = `<span class="status-badge badge-connected">Connected</span>`;
-      alpacaFeedEl.innerText = `Feed: ${alpaca.feed.toUpperCase()} (${alpaca.feed === 'iex' ? 'Partial Tape' : 'Full SIP'})`;
-    } else {
-      alpacaStatusEl.innerHTML = `<span class="status-badge badge-disconnected">Not Connected</span>`;
-      alpacaFeedEl.innerText = 'Feed: ' + (alpaca.feed ? alpaca.feed.toUpperCase() : 'IEX');
+    // Check TradingView Market Data bridge diagnostics
+    try {
+      const diagRes = await window.API.getMarketDiagnostics();
+      const diag = (diagRes && diagRes.market_data_diagnostics) || {};
+      const alpacaStatusEl = document.getElementById('ov-alpaca-status');
+      const alpacaFeedEl = document.getElementById('ov-alpaca-feed');
+      const lastQuoteEl = document.getElementById('ov-last-quote-time');
+
+      if (alpacaStatusEl) {
+        if (diag.bridge_connected) {
+          alpacaStatusEl.innerHTML = `<span class="status-badge badge-connected">Connected</span>`;
+          if (alpacaFeedEl) {
+            alpacaFeedEl.innerText = 'TradingView Market Data Connected';
+          }
+        } else {
+          alpacaStatusEl.innerHTML = `<span class="status-badge badge-disconnected">Offline</span>`;
+          if (alpacaFeedEl) {
+            alpacaFeedEl.innerText = 'Bridge Service Offline (Port 8002)';
+          }
+        }
+      }
+
+      if (lastQuoteEl) {
+        if (diag.last_successful_quote_time) {
+          const qDate = new Date(diag.last_successful_quote_time);
+          lastQuoteEl.innerText = `Last Quote: ${qDate.toLocaleTimeString()}`;
+        } else {
+          lastQuoteEl.innerText = 'Last Quote: Awaiting First Scan';
+        }
+      }
+    } catch (dErr) {
+      console.warn('Failed to fetch market diagnostics:', dErr);
     }
 
     const tgStatusEl = document.getElementById('ov-telegram-status');
@@ -134,10 +208,15 @@ async function refreshOverview() {
       extSymEl.innerText = ext.installed ? 'Installed (No TV Tab)' : 'Not Installed';
     }
 
-    if (ext.broker_name && !ext.broker_name.toLowerCase().includes('paper')) {
+    const isLiveBroker = ext.account_state === 'LIVE_BROKER_CONNECTED' || 
+      (ext.broker_name && !['none', 'null', 'undefined', '', 'disconnected'].includes(ext.broker_name.toLowerCase()) && 
+       !ext.broker_name.toLowerCase().includes('paper') && 
+       ['interactive brokers', 'tradovate', 'amp', 'oanda', 'binance', 'cqg'].some(b => ext.broker_name.toLowerCase().includes(b)));
+
+    if (isLiveBroker) {
       paperStatusEl.innerHTML = `<span class="status-badge badge-danger">Live Broker (${ext.broker_name})</span>`;
       brokerNameEl.innerText = 'SAFETY HALT ENGAGED';
-    } else if (ext.paper_trading_connected) {
+    } else if (ext.account_state === 'PAPER_TRADING_CONNECTED' || ext.paper_trading_connected) {
       paperStatusEl.innerHTML = `<span class="status-badge badge-connected">Verified Active</span>`;
       brokerNameEl.innerText = ext.broker_name || 'Paper Trading by TradingView';
     } else {
@@ -216,3 +295,4 @@ function startOverviewPolling() {
   refreshOverview();
   setInterval(refreshOverview, 5000);
 }
+

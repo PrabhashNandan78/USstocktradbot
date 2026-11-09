@@ -161,3 +161,4 @@ def detect_candlestick_patterns(candles: List[Dict[str, Any]]) -> Dict[str, Any]
         "patterns": patterns,
         "primary_pattern": patterns[0] if patterns else None
     }
+

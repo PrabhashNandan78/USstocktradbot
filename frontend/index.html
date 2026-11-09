@@ -77,8 +77,12 @@
         <h1 id="view-title">System Overview</h1>
         <p id="view-desc">Live status, broker connection, and portfolio performance</p>
       </div>
-      <div class="top-controls">
-        <span id="market-status-badge" class="status-badge badge-connected">US Market: Open</span>
+      <div class="top-controls" style="display:flex; align-items:center; gap:12px;">
+        <div style="text-align:right; font-size:12px; line-height:1.2;">
+          <div id="ny-time-display" style="color:var(--text-muted); font-weight:500;">NY: --:--:-- ET</div>
+          <div id="market-next-event" style="color:var(--text-dim); font-size:11px;">Next: Checking...</div>
+        </div>
+        <span id="market-status-badge" class="status-badge badge-disconnected">US Market: Checking...</span>
         <button id="manual-scan-top-btn" class="btn btn-primary">🔍 Scan Universe Now</button>
       </div>
     </div>
@@ -87,11 +91,12 @@
     <section id="section-overview" class="view-section active">
       <div class="status-grid">
         <div class="card">
-          <div class="card-label">Alpaca Market Data</div>
+          <div class="card-label">TradingView Market Data</div>
           <div class="card-value" id="ov-alpaca-status">
             <span class="status-badge badge-disconnected">Checking...</span>
           </div>
-          <div class="card-subtext" id="ov-alpaca-feed">Feed: IEX</div>
+          <div class="card-subtext" id="ov-alpaca-feed">TradingView Market Data</div>
+          <div class="card-subtext" id="ov-last-quote-time" style="margin-top:2px; font-size:11px; color:var(--text-dim);">Last Quote: Never</div>
         </div>
 
         <div class="card">
@@ -179,6 +184,8 @@
         </div>
       </div>
 
+      <div id="scanner-feed-banner" style="display:none; padding:10px 14px; margin-bottom:14px; border-radius:6px; font-size:12px; line-height:1.4;"></div>
+
       <div class="status-grid" style="grid-template-columns: repeat(4, 1fr);">
         <div class="card">
           <div class="card-label">Universe Candidates</div>
@@ -197,6 +204,8 @@
           <div class="card-value negative" id="sc-rejected-count">0</div>
         </div>
       </div>
+
+      <div id="scanner-accounting-breakdown"></div>
 
       <h3 style="margin-bottom: 12px;">Strategy Qualified Stocks (Ready for Execution)</h3>
       <div class="table-container">
@@ -300,8 +309,13 @@
     <!-- 5. TRADE HISTORY SECTION -->
     <section id="section-trade-history" class="view-section">
       <div class="actions-bar">
-        <div style="display:flex; gap:12px;">
-          <input type="text" id="history-filter-symbol" class="form-control" placeholder="Search by Symbol (e.g. AAPL)" style="width:250px;">
+        <div style="display:flex; gap:12px; align-items:center;">
+          <select id="history-filter-source" class="form-control" style="width:230px;">
+            <option value="TRADINGVIEW_PAPER" selected>TradingView Paper (Verified)</option>
+            <option value="TEST_SIMULATION">Test Simulation</option>
+            <option value="ALL">All Sources Combined</option>
+          </select>
+          <input type="text" id="history-filter-symbol" class="form-control" placeholder="Search by Symbol (e.g. AAPL)" style="width:220px;">
           <button id="history-search-btn" class="btn btn-primary">Filter</button>
         </div>
         <button id="refresh-history-btn" class="btn btn-secondary">🔄 Refresh History</button>
@@ -311,6 +325,7 @@
           <thead>
             <tr>
               <th>Trade ID</th>
+              <th>Source</th>
               <th>Symbol</th>
               <th>Side</th>
               <th>Entry</th>
@@ -325,7 +340,7 @@
             </tr>
           </thead>
           <tbody id="history-tbody">
-            <tr><td colspan="12" style="text-align:center; color:var(--text-dim);">No closed trade history yet.</td></tr>
+            <tr><td colspan="13" style="text-align:center; color:var(--text-dim);">No closed trade history yet.</td></tr>
           </tbody>
         </table>
       </div>
@@ -333,6 +348,22 @@
 
     <!-- 6. PERFORMANCE ANALYTICS SECTION -->
     <section id="section-analytics" class="view-section">
+      <div class="actions-bar" style="margin-bottom: 16px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <label style="font-size:13px; font-weight:600; color:var(--text-secondary);">Analytics Source:</label>
+          <select id="analytics-filter-source" class="form-control" style="width:250px;">
+            <option value="TRADINGVIEW_PAPER" selected>TradingView Paper (Verified)</option>
+            <option value="TEST_SIMULATION">Test Simulation</option>
+            <option value="ALL">All Sources Combined</option>
+          </select>
+        </div>
+        <button id="refresh-analytics-btn" class="btn btn-secondary">🔄 Refresh Analytics</button>
+      </div>
+
+      <div id="analytics-empty-banner" style="display:none; padding:12px 16px; margin-bottom:16px; background:rgba(59,130,246,0.1); border:1px solid #3b82f6; border-radius:6px; color:#93c5fd; font-size:13px;">
+        ℹ️ No verified TradingView Paper Trading history available yet. Test simulation records are excluded from verified Paper Trading analytics.
+      </div>
+
       <div class="status-grid">
         <div class="card">
           <div class="card-label">Win Rate</div>
@@ -410,7 +441,8 @@
       </div>
 
       <div class="test-grid">
-        <button id="test-btn-alpaca" class="btn btn-primary">🧪 Test Alpaca API</button>
+        <button id="test-btn-alpaca" class="btn btn-primary">🧪 Test TradingView Market Data</button>
+        <button id="test-btn-validation-report" class="btn btn-secondary">📊 Data Validation Report</button>
         <button id="test-btn-telegram" class="btn btn-primary">🧪 Test Telegram Bot</button>
         <button id="test-btn-extension" class="btn btn-primary">🧪 Test Extension</button>
         <button id="test-btn-paper" class="btn btn-primary">🧪 Test Paper Trading</button>
@@ -443,31 +475,35 @@
     <!-- 8. SETTINGS SECTION -->
     <section id="section-settings" class="view-section">
       <div class="form-grid">
-        <!-- Alpaca Credentials Card -->
+        <!-- TradingView Market Data Configuration Card -->
         <div class="card">
-          <h3>Alpaca Market Data Configuration</h3>
+          <h3>TradingView Market Data Configuration</h3>
           <p class="form-help" style="margin-bottom: 16px;">
-            Market data only. Feeds: IEX (Free/Standard) or SIP (Consolidated Exchange Tape).
+            Live consolidated US stock market data via TradingView-API (@mathieuc/tradingview). Full NYSE, NASDAQ & AMEX tape coverage.
           </p>
           <div class="form-group">
-            <label>Alpaca API Key ID</label>
-            <input type="text" id="alpaca-api-key" class="form-control" placeholder="Enter Alpaca API Key">
+            <label>TradingView Bridge Service URL</label>
+            <input type="text" id="tv-service-url" class="form-control" value="http://127.0.0.1:8002" placeholder="http://127.0.0.1:8002">
           </div>
           <div class="form-group">
-            <label>Alpaca API Secret Key</label>
-            <input type="password" id="alpaca-secret-key" class="form-control" placeholder="Enter Alpaca Secret Key">
+            <label>Market Data Feed Coverage</label>
+            <div style="font-size: 13px; color: var(--color-green); font-weight: 500; margin-top: 4px;">
+              ✅ Consolidated US Equities Tape (NYSE + NASDAQ + AMEX Real-Time Quotes & OHLCV Bars)
+            </div>
+            <div class="form-help" style="margin-top: 4px;">
+              Supports 5M, 15M, and 1H candles with automated OHLCV integrity verification.
+            </div>
           </div>
-          <div class="form-group">
-            <label>Market Data Feed Selection</label>
-            <select id="alpaca-feed-select" class="form-control">
-              <option value="iex">IEX (Investors Exchange - Default/Free)</option>
-              <option value="sip">SIP (Securities Information Processor - Full Tape)</option>
-            </select>
-            <div class="form-help">Clearly note: IEX provides partial volume compared to full consolidated tape.</div>
+          <!-- Hidden fallback inputs for legacy compatibility -->
+          <div style="display:none;">
+            <input type="text" id="alpaca-api-key" value="">
+            <input type="password" id="alpaca-secret-key" value="">
+            <select id="alpaca-feed-select"><option value="consolidated">Consolidated</option></select>
           </div>
-          <div style="display:flex; gap:10px;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <button id="alpaca-test-btn" class="btn btn-secondary">Test Connection</button>
-            <button id="alpaca-save-btn" class="btn btn-primary">Save Credentials</button>
+            <button id="alpaca-save-btn" class="btn btn-primary">Save Settings</button>
+            <button id="tv-val-report-btn" class="btn btn-info" style="font-size:12px;">📊 View Validation Report</button>
           </div>
           <div id="alpaca-status-msg" style="margin-top:12px; font-size:12px;"></div>
         </div>
@@ -491,6 +527,45 @@
             <button id="telegram-save-btn" class="btn btn-primary">Save Settings</button>
           </div>
           <div id="telegram-status-msg" style="margin-top:12px; font-size:12px;"></div>
+        </div>
+
+        <!-- Telegram Subscribers & Broadcast Management Card -->
+        <div class="card" style="grid-column: 1 / -1;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+            <div>
+              <h3 style="margin:0 0 4px 0;">Telegram Multi-User Broadcast Engine</h3>
+              <p class="form-help" style="margin:0;">
+                All active subscribers receive trade signals, execution confirmations, and closed trade alerts. Users can self-subscribe by messaging <code>/start</code> to your bot.
+              </p>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <button id="tg-poll-btn" class="btn btn-secondary btn-sm">📥 Check for New Bot Commands</button>
+              <button id="tg-broadcast-test-btn" class="btn btn-primary btn-sm">📢 Broadcast Test Alert</button>
+            </div>
+          </div>
+          <div style="display:flex; gap:20px; margin-bottom:12px; font-size:13px; align-items:center;">
+            <div>Active Subscribers: <strong id="tg-sub-active-count" class="positive">0</strong></div>
+            <div>Total Registered: <strong id="tg-sub-total-count">0</strong></div>
+            <div id="tg-broadcast-status-msg" style="font-size:12px; color:var(--text-muted);"></div>
+          </div>
+          <div class="table-container" style="max-height:220px; overflow-y:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Chat ID</th>
+                  <th>Username / Name</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Subscribed At</th>
+                  <th>Last Delivery</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="tg-subscribers-tbody">
+                <tr><td colspan="7" style="text-align:center; color:var(--text-dim); padding:12px;">No subscribers registered yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Scanner Configuration Card -->
@@ -554,3 +629,4 @@
   <script src="/static/js/test_center_ui.js"></script>
 </body>
 </html>
+

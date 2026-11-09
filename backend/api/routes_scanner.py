@@ -34,14 +34,21 @@ def get_scanner_status():
     }
 
 @router.post("/start")
-def start_scanner():
-    scanner_instance.start()
-    return {"status": "RUNNING", "message": "Scanner background loop initiated."}
+async def start_scanner():
+    """
+    Starts the background scan loop using the FastAPI event loop.
+    Uses async endpoint so asyncio.create_task() is called from a coroutine.
+    """
+    result = await scanner_instance.start()
+    return result
 
 @router.post("/stop")
-def stop_scanner():
-    scanner_instance.stop()
-    return {"status": "STOPPED", "message": "Scanner background loop paused."}
+async def stop_scanner():
+    """
+    Cancels and awaits the background scan task cleanly.
+    """
+    result = await scanner_instance.stop()
+    return result
 
 @router.post("/scan-now")
 def run_immediate_scan():

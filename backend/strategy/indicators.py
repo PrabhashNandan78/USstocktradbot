@@ -142,3 +142,4 @@ def calculate_volume_metrics(candles: List[Dict[str, Any]], period: int = 20) ->
         expansion_flags.append(is_expansion)
 
     return avg_volumes, expansion_flags
+

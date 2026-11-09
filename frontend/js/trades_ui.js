@@ -78,15 +78,18 @@ window.loadActiveTradesView = async function () {
 // 3. Trade History View
 window.loadTradeHistoryView = async function () {
   const symFilter = document.getElementById('history-filter-symbol');
+  const srcFilter = document.getElementById('history-filter-source');
   const symbol = symFilter ? symFilter.value.trim() : null;
+  const source = srcFilter ? srcFilter.value : 'TRADINGVIEW_PAPER';
 
   try {
-    const history = await window.API.getTradeHistory(100, symbol);
+    const history = await window.API.getTradeHistory(100, symbol, source);
     const tbody = document.getElementById('history-tbody');
     if (!tbody) return;
 
     if (history.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; color:var(--text-dim);">No closed trade history recorded.</td></tr>`;
+      const label = source === 'TRADINGVIEW_PAPER' ? 'verified TradingView Paper Trading' : (source === 'TEST_SIMULATION' ? 'test simulation' : 'trade');
+      tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; color:var(--text-dim); padding:20px;">No ${label} history recorded yet.</td></tr>`;
       return;
     }
 
@@ -98,10 +101,14 @@ window.loadTradeHistoryView = async function () {
       const mins = Math.floor((durSec % 3600) / 60);
       const secs = durSec % 60;
       const durStr = `${hours}h ${mins}m ${secs}s`;
+      const srcBadge = t.trade_source === 'TRADINGVIEW_PAPER'
+        ? `<span class="status-badge badge-connected">Verified Paper</span>`
+        : `<span class="status-badge badge-warning">Simulation</span>`;
 
       return `
         <tr>
           <td><code style="font-size:11px;">${t.id}</code></td>
+          <td>${srcBadge}</td>
           <td><strong>${t.symbol}</strong></td>
           <td><span class="status-badge badge-connected">${t.direction}</span></td>
           <td>$${(t.executed_entry || t.requested_entry).toFixed(2)}</td>
@@ -123,13 +130,27 @@ window.loadTradeHistoryView = async function () {
 
 // 4. Performance Analytics View
 window.loadAnalyticsView = async function () {
+  const srcFilter = document.getElementById('analytics-filter-source');
+  const source = srcFilter ? srcFilter.value : 'TRADINGVIEW_PAPER';
+  const emptyBanner = document.getElementById('analytics-empty-banner');
+
   try {
-    const a = await window.API.getAnalytics();
+    const a = await window.API.getAnalytics(source);
+
+    if (emptyBanner) {
+      if (a.total_trades === 0) {
+        emptyBanner.style.display = 'block';
+        emptyBanner.innerText = `ℹ️ ${a.message || 'No trade history available for selected source.'}`;
+      } else {
+        emptyBanner.style.display = 'none';
+      }
+    }
     
     document.getElementById('an-winrate').innerText = `${a.win_rate_pct.toFixed(1)}%`;
     document.getElementById('an-win-loss-count').innerText = `${a.winning_trades} Wins / ${a.losing_trades} Losses (Total: ${a.total_trades})`;
     
-    document.getElementById('an-profit-factor').innerText = a.profit_factor.toFixed(2);
+    const pfVal = (typeof a.profit_factor === 'number') ? a.profit_factor.toFixed(2) : String(a.profit_factor || 'N/A');
+    document.getElementById('an-profit-factor').innerText = pfVal;
     
     const netEl = document.getElementById('an-net-pnl');
     netEl.innerText = `${a.net_pnl >= 0 ? '+' : ''}$${a.net_pnl.toFixed(2)}`;
@@ -144,7 +165,7 @@ window.loadAnalyticsView = async function () {
     const stockTbody = document.getElementById('analytics-by-stock-tbody');
     const stocks = Object.keys(a.by_stock || {});
     if (stocks.length === 0) {
-      stockTbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-dim);">No closed trades recorded.</td></tr>`;
+      stockTbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-dim); padding:16px;">No closed trades recorded for ${source}.</td></tr>`;
     } else {
       stockTbody.innerHTML = stocks.map(s => {
         const item = a.by_stock[s];
@@ -186,9 +207,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchBtn = document.getElementById('history-search-btn');
   if (searchBtn) searchBtn.addEventListener('click', window.loadTradeHistoryView);
 
+  const historySrc = document.getElementById('history-filter-source');
+  if (historySrc) historySrc.addEventListener('change', window.loadTradeHistoryView);
+
+  const analyticsSrc = document.getElementById('analytics-filter-source');
+  if (analyticsSrc) analyticsSrc.addEventListener('change', window.loadAnalyticsView);
+
+  const refreshAnalytics = document.getElementById('refresh-analytics-btn');
+  if (refreshAnalytics) refreshAnalytics.addEventListener('click', window.loadAnalyticsView);
+
   const refreshSignals = document.getElementById('refresh-signals-btn');
   if (refreshSignals) refreshSignals.addEventListener('click', window.loadSignalsView);
 
   const refreshActive = document.getElementById('refresh-active-trades-btn');
   if (refreshActive) refreshActive.addEventListener('click', window.loadActiveTradesView);
 });
+

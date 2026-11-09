@@ -5,7 +5,7 @@
   <title>TradingView Bridge</title>
   <style>
     body {
-      width: 300px;
+      width: 320px;
       margin: 0;
       padding: 16px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -29,14 +29,16 @@
     .row {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       font-size: 12px;
-      margin-bottom: 6px;
+      margin-bottom: 7px;
     }
     .row:last-child {
       margin-bottom: 0;
     }
     .val {
       font-weight: 600;
+      text-align: right;
     }
     .ok { color: #10b981; }
     .warn { color: #f59e0b; }
@@ -68,13 +70,30 @@
       <span id="tv-tab-status" class="val">No</span>
     </div>
     <div class="row">
-      <span>Paper Trading:</span>
-      <span id="pt-status" class="val">No</span>
+      <span>Account State:</span>
+      <span id="account-state-status" class="val">UNKNOWN</span>
     </div>
     <div class="row">
-      <span>Current Symbol:</span>
+      <span>Active Broker:</span>
+      <span id="broker-status" class="val">-</span>
+    </div>
+    <div class="row">
+      <span>Paper Trading:</span>
+      <span id="pt-status" class="val">Disconnected</span>
+    </div>
+    <div class="row">
+      <span>Account Balance:</span>
+      <span id="balance-status" class="val">-</span>
+    </div>
+    <div class="row">
+      <span>Active Symbol:</span>
       <span id="symbol-status" class="val">-</span>
     </div>
+    <div class="row">
+      <span>Last Verified:</span>
+      <span id="last-verified-status" class="val" style="font-size:11px;">Never</span>
+    </div>
+    <div id="error-message-box" style="display:none; margin-top:8px; padding:6px; background:rgba(239,68,68,0.2); border:1px solid #ef4444; border-radius:4px; font-size:11px; color:#fca5a5;"></div>
   </div>
 
   <button id="open-dashboard-btn" class="btn">Open Trading Bot Dashboard</button>

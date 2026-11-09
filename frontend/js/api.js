@@ -28,6 +28,11 @@ const API = {
 
   // Settings
   getSettings() { return this.get('/api/settings/'); },
+  getMarketStatus() { return this.get('/api/market/status'); },
+  getMarketDiagnostics() { return this.get('/api/market/diagnostics'); },
+  testTradingView(cfg) { return this.post('/api/settings/tradingview/test', cfg); },
+  saveTradingView(cfg) { return this.post('/api/settings/tradingview/save', cfg); },
+  getValidationReport(timeframe = '5') { return this.get(`/api/settings/tradingview/validation-report?timeframe=${timeframe}`); },
   testAlpaca(cfg) { return this.post('/api/settings/alpaca/test', cfg); },
   saveAlpaca(cfg) { return this.post('/api/settings/alpaca/save', cfg); },
   testTelegram(cfg) { return this.post('/api/settings/telegram/test', cfg); },
@@ -48,12 +53,23 @@ const API = {
 
   // Trades & Analytics
   getActiveTrades() { return this.get('/api/trades/active'); },
-  getTradeHistory(limit = 100, symbol = null) {
-    const q = symbol ? `?limit=${limit}&symbol=${encodeURIComponent(symbol)}` : `?limit=${limit}`;
+  getTradeHistory(limit = 100, symbol = null, source = 'TRADINGVIEW_PAPER') {
+    let q = `?limit=${limit}`;
+    if (symbol) q += `&symbol=${encodeURIComponent(symbol)}`;
+    if (source) q += `&source=${encodeURIComponent(source)}`;
     return this.get(`/api/trades/history${q}`);
   },
-  getAnalytics() { return this.get('/api/trades/analytics'); },
+  getAnalytics(source = 'TRADINGVIEW_PAPER') {
+    const q = source ? `?source=${encodeURIComponent(source)}` : '';
+    return this.get(`/api/trades/analytics${q}`);
+  },
   triggerKillSwitch() { return this.post('/api/trades/kill-switch'); },
+
+  // Telegram Multi-User Subscribers
+  getTelegramSubscribers() { return this.get('/api/settings/telegram/subscribers'); },
+  broadcastTelegramTest(msg = null) { return this.post('/api/settings/telegram/broadcast', { message: msg }); },
+  toggleTelegramSubscriber(chatId, isActive) { return this.post('/api/settings/telegram/toggle-subscriber', { chat_id: chatId, is_active: isActive }); },
+  pollTelegramUpdates() { return this.post('/api/settings/telegram/poll'); },
 
   // Extension status
   getExtensionStatus() { return this.get('/api/extension/status'); },
@@ -64,3 +80,4 @@ const API = {
 };
 
 window.API = API;
+

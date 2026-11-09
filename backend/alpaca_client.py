@@ -288,3 +288,4 @@ class AlpacaClient:
             logger.warning(f"Failed to fetch assets list from Alpaca paper API: {e}")
 
         return list(DEFAULT_US_UNIVERSE)
+

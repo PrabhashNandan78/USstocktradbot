@@ -192,3 +192,4 @@ def score_5m_confirmation(
         "reasons": reasons if not is_valid else ["All mandatory confirmation conditions passed"],
         "confirmation_candle": curr
     }
+

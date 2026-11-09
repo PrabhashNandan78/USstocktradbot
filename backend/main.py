@@ -12,7 +12,8 @@ from backend.api import (
     routes_signals,
     routes_trades,
     routes_extension,
-    routes_tests
+    routes_tests,
+    routes_market
 )
 
 from contextlib import asynccontextmanager
@@ -25,7 +26,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Antigravity Multi-Stock Bullish Trading Bot",
-    description="Multi-Stock US Market Trading System with Alpaca Data, TradingView Paper Trading Extension, and Telegram Alerts",
+    description="Multi-Stock US Market Trading System with TradingView Market Data, TradingView Paper Trading Extension, and Telegram Alerts",
     version="3.0.0",
     lifespan=lifespan
 )
@@ -46,6 +47,7 @@ app.include_router(routes_signals.router)
 app.include_router(routes_trades.router)
 app.include_router(routes_extension.router)
 app.include_router(routes_tests.router)
+app.include_router(routes_market.router)
 
 # Mount Static Files for frontend
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"

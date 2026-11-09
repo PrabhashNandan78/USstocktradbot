@@ -25,20 +25,37 @@ document.addEventListener('DOMContentLoaded', () => {
     consoleEl.scrollTop = consoleEl.scrollHeight;
   }
 
-  // 1. Test Alpaca
+  // 1. Test TradingView Market Data
   const btnAlpaca = document.getElementById('test-btn-alpaca');
   if (btnAlpaca) {
     btnAlpaca.addEventListener('click', async () => {
       btnAlpaca.disabled = true;
-      logConsole('Executing Alpaca Market Data Connectivity Test...');
+      logConsole('Executing TradingView Market Data Connectivity & OHLCV Validation Test...');
       try {
-        const res = await window.API.testSuite('alpaca');
+        const res = await window.API.testSuite('tradingview');
         logConsole(JSON.stringify(res, null, 2), true);
         window.loadTestCenterView();
       } catch (e) {
-        logConsole(`❌ Error executing Alpaca test: ${e.message}`, true);
+        logConsole(`❌ Error executing TradingView test: ${e.message}`, true);
       } finally {
         btnAlpaca.disabled = false;
+      }
+    });
+  }
+
+  // 1b. Test Validation Report
+  const btnValReport = document.getElementById('test-btn-validation-report');
+  if (btnValReport) {
+    btnValReport.addEventListener('click', async () => {
+      btnValReport.disabled = true;
+      logConsole('Generating Comprehensive Data Validation Report (AAPL, MSFT, NVDA, TSLA across 5M bars)...');
+      try {
+        const res = await window.API.getValidationReport('5');
+        logConsole(JSON.stringify(res, null, 2), true);
+      } catch (e) {
+        logConsole(`❌ Error generating validation report: ${e.message}`, true);
+      } finally {
+        btnValReport.disabled = false;
       }
     });
   }
@@ -143,3 +160,4 @@ function renderTestHistoryTable(history) {
     `;
   }).join('');
 }
+

@@ -3,3 +3,5 @@ __pycache__/
 *$py.class
 *.db
 .pytest_cache/
+node_modules/
+

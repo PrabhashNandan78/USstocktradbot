@@ -8,6 +8,7 @@ from fastapi import WebSocket
 from backend.database import get_db_connection, set_config_val, get_config_val, log_system_event
 from backend.signals import SignalManager
 from backend.telegram_bot import TelegramNotifier
+from backend.market_calendar import NYSECalendar
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +23,14 @@ class ExecutionBridge:
             "tv_login_detected": False,
             "paper_trading_connected": False,
             "paper_trading_account_verified": False,
+            "account_state": "UNKNOWN",
+            "account_balance": None,
+            "last_verified_at": None,
             "current_symbol": None,
             "last_heartbeat": None,
             "broker_name": None,
-            "error_message": None
+            "error_message": None,
+            "indicators": None
         }
 
     async def connect_websocket(self, websocket: WebSocket):
@@ -51,8 +56,23 @@ class ExecutionBridge:
     def update_status_from_extension(self, data: Dict[str, Any]):
         """
         Receives heartbeat / telemetry from TradingView content script:
-        - tab detected, login detected, paper trading connected, broker name, current symbol
+        - tab detected, login detected, paper trading state machine, broker name, current symbol, account balance, indicators
+        Protects against out-of-order stale telemetry overwrites.
         """
+        incoming_verified_at = data.get("last_verified_at")
+        existing_verified_at = self.extension_state.get("last_verified_at")
+        
+        # Out-of-order stale telemetry guard
+        if incoming_verified_at and existing_verified_at:
+            try:
+                dt_incoming = datetime.fromisoformat(incoming_verified_at.replace("Z", "+00:00"))
+                dt_existing = datetime.fromisoformat(existing_verified_at.replace("Z", "+00:00"))
+                if dt_incoming < dt_existing:
+                    logger.debug(f"Ignoring stale extension telemetry: {incoming_verified_at} < {existing_verified_at}")
+                    return
+            except Exception:
+                pass
+
         now = datetime.now(timezone.utc).isoformat()
         self.extension_state["last_heartbeat"] = now
         self.extension_state["installed"] = True
@@ -61,21 +81,43 @@ class ExecutionBridge:
         self.extension_state["tv_login_detected"] = data.get("tv_login_detected", False)
         
         # Rigorous Broker Safety Check:
-        # Must be Paper Trading, NEVER a live broker!
         broker_name = data.get("broker_name", "")
         self.extension_state["broker_name"] = broker_name
-        is_paper = ("paper" in broker_name.lower()) or data.get("paper_trading_connected", False)
-        is_live_broker = any(live in broker_name.lower() for live in ["interactive brokers", "tradovate", "amp", "oanda", "binance", "cqg"])
-        
-        if is_live_broker:
+        self.extension_state["account_balance"] = data.get("account_balance")
+        self.extension_state["last_verified_at"] = incoming_verified_at or now
+        self.extension_state["indicators"] = data.get("indicators")
+
+        # State machine classification
+        account_state = data.get("account_state")
+        if not account_state or account_state not in ("PAPER_TRADING_CONNECTED", "LIVE_BROKER_CONNECTED", "DISCONNECTED", "UNKNOWN"):
+            account_state = None
+
+        if not account_state:
+            # Fallback deduction if not directly sent
+            if (broker_name and "paper" in broker_name.lower()) or data.get("paper_trading_connected"):
+                account_state = "PAPER_TRADING_CONNECTED"
+            elif broker_name and any(live in broker_name.lower() for live in ["interactive brokers", "tradovate", "amp", "oanda", "binance", "cqg"]):
+                account_state = "LIVE_BROKER_CONNECTED"
+            elif broker_name in ("NONE", "", None):
+                account_state = "DISCONNECTED"
+            else:
+                account_state = "UNKNOWN"
+
+        self.extension_state["account_state"] = account_state
+
+        if account_state == "LIVE_BROKER_CONNECTED":
             self.extension_state["paper_trading_connected"] = False
             self.extension_state["paper_trading_account_verified"] = False
             self.extension_state["error_message"] = f"CRITICAL SAFETY WARNING: Connected broker is '{broker_name}'. Automation only allowed on Paper Trading!"
             log_system_event("SECURITY", self.extension_state["error_message"], severity="ERROR")
-        else:
-            self.extension_state["paper_trading_connected"] = is_paper
-            self.extension_state["paper_trading_account_verified"] = is_paper and data.get("paper_trading_account_verified", False)
-            self.extension_state["error_message"] = data.get("error_message")
+        elif account_state == "PAPER_TRADING_CONNECTED":
+            self.extension_state["paper_trading_connected"] = True
+            self.extension_state["paper_trading_account_verified"] = True
+            self.extension_state["error_message"] = None
+        else: # DISCONNECTED or UNKNOWN
+            self.extension_state["paper_trading_connected"] = False
+            self.extension_state["paper_trading_account_verified"] = False
+            self.extension_state["error_message"] = data.get("error_message") or "TradingView Paper Trading is not connected."
 
         self.extension_state["current_symbol"] = data.get("current_symbol")
         
@@ -110,15 +152,62 @@ class ExecutionBridge:
         signal_id = signal["signal_id"]
         symbol = signal["symbol"]
 
-        # Safety Check: Paper Trading verification
-        if not self.extension_state["connected"] or not self.extension_state["paper_trading_connected"]:
+        # Safety Check 1: Account State must be strictly PAPER_TRADING_CONNECTED
+        if not self.extension_state.get("connected") or self.extension_state.get("account_state") != "PAPER_TRADING_CONNECTED":
             err_msg = (
-                "Cannot dispatch trade: TradingView Paper Trading is NOT connected. "
+                f"Cannot dispatch trade: TradingView Paper Trading is NOT connected (state: {self.extension_state.get('account_state', 'UNKNOWN')}). "
                 "Please connect Paper Trading in TradingView Trading Panel before executing."
             )
             SignalManager.update_signal_status(signal_id, "EXECUTION_FAILED", notes=err_msg)
             log_system_event("EXECUTION", err_msg, severity="ERROR")
             return {"success": False, "status": "PAPER_TRADING_NOT_CONNECTED", "message": err_msg}
+
+        # Safety Check 2: Symbol Match Validation
+        # If current_symbol is reported by the extension, normalize and verify it matches the signal symbol!
+        current_tv_symbol = self.extension_state.get("current_symbol")
+        if current_tv_symbol:
+            clean_tv = current_tv_symbol.upper().strip()
+            # If exchange prefix present (e.g., NASDAQ:AAPL or NSE:NIFTY1!)
+            if ":" in clean_tv:
+                exchange, sym = clean_tv.split(":", 1)
+                # Foreign or non-US equity exchange check
+                if exchange in ["NSE", "BSE", "MCX", "BINANCE", "COINBASE", "FX", "FOREX", "CRYPTO", "OANDA", "INDEX"]:
+                    err_msg = f"Execution blocked: TradingView chart exchange '{exchange}' is not a US equity exchange."
+                    SignalManager.update_signal_status(signal_id, "EXECUTION_FAILED", notes=err_msg)
+                    log_system_event("SECURITY", err_msg, severity="ERROR")
+                    return {"success": False, "status": "SYMBOL_MISMATCH", "message": err_msg}
+                clean_tv_ticker = sym
+            else:
+                clean_tv_ticker = clean_tv
+
+            if clean_tv_ticker != symbol.upper().strip():
+                err_msg = f"Execution blocked: TradingView symbol '{clean_tv_ticker}' does not match signal symbol '{symbol}'."
+                SignalManager.update_signal_status(signal_id, "EXECUTION_FAILED", notes=err_msg)
+                log_system_event("SECURITY", err_msg, severity="ERROR")
+                return {"success": False, "status": "SYMBOL_MISMATCH", "message": err_msg}
+
+        # Safety Check 3: Market Hours & Quote Freshness
+        # Block execution if signal is marked non-executable (e.g. market was closed or quote was stale)
+        if signal.get("is_live_executable") is False:
+            err_msg = (
+                f"Execution blocked: Signal is not eligible for live execution. "
+                f"Reason: {signal.get('execution_blocked_reason', 'Market was closed or quote was stale when analyzed.')}"
+            )
+            SignalManager.update_signal_status(signal_id, "EXECUTION_BLOCKED", notes=err_msg)
+            log_system_event("EXECUTION_GUARD", err_msg, severity="WARNING")
+            return {"success": False, "status": "EXECUTION_BLOCKED", "message": err_msg}
+
+        # Ensure market is open at dispatch time for live execution signals
+        if not signal.get("bypass_market_hours"):
+            market_info = NYSECalendar.get_market_status()
+            if signal.get("is_live_executable") is True and market_info["status"] != "OPEN":
+                err_msg = (
+                    f"Execution blocked: US Market session is currently {market_info['status']}. "
+                    "Automated orders can only execute during regular trading hours (09:30 - 16:00 ET)."
+                )
+                SignalManager.update_signal_status(signal_id, "EXECUTION_BLOCKED", notes=err_msg)
+                log_system_event("EXECUTION_GUARD", err_msg, severity="WARNING")
+                return {"success": False, "status": "MARKET_NOT_OPEN", "message": err_msg}
 
         # Send Mandatory Telegram Notification 1 immediately upon dispatch
         SignalManager.update_signal_status(signal_id, "SENT_TO_EXTENSION")

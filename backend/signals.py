@@ -16,7 +16,16 @@ class SignalManager:
         conn.close()
         if not row:
             return None
-        return dict(row)
+        d = dict(row)
+        if d.get("details"):
+            try:
+                extra = json.loads(d["details"])
+                for k in ("is_live_executable", "market_status", "quote_freshness", "execution_blocked_reason"):
+                    if k in extra:
+                        d[k] = extra[k]
+            except Exception:
+                pass
+        return d
 
     @staticmethod
     def is_duplicate_demand_zone(symbol: str, zone_low: float, zone_high: float) -> bool:
@@ -59,6 +68,11 @@ class SignalManager:
         cursor = conn.cursor()
         now = datetime.now(timezone.utc).isoformat()
 
+        details = dict(signal_data.get("details", {}))
+        for k in ("is_live_executable", "market_status", "quote_freshness", "execution_blocked_reason"):
+            if k in signal_data:
+                details[k] = signal_data[k]
+
         cursor.execute("""
             INSERT INTO signals (
                 id, symbol, direction, timestamp, entry_price, stop_loss,
@@ -69,30 +83,38 @@ class SignalManager:
         """, (
             signal_data["signal_id"],
             signal_data["symbol"],
-            signal_data["direction"],
-            signal_data["timestamp"],
+            signal_data.get("direction", "BUY"),
+            signal_data.get("timestamp", now),
             signal_data["entry_price"],
             signal_data["stop_loss"],
             signal_data["take_profit"],
-            signal_data["quantity"],
-            signal_data["signal_score"],
-            signal_data["risk_reward"],
+            signal_data.get("quantity", 1.0),
+            signal_data.get("signal_score", 0.0),
+            signal_data.get("risk_reward", 1.0),
             signal_data["demand_zone_low"],
             signal_data["demand_zone_high"],
-            signal_data["timeframe"],
+            signal_data.get("timeframe", "15m"),
             signal_data.get("status", "GENERATED"),
             json.dumps(signal_data.get("score_breakdown", {})),
-            json.dumps(signal_data.get("details", {})),
+            json.dumps(details),
             now
         ))
+
+        # Determine trade source classification
+        source = signal_data.get("trade_source")
+        if not source:
+            if signal_data["symbol"].startswith("SIM_") or "TEST" in signal_data.get("signal_id", ""):
+                source = "TEST_SIMULATION"
+            else:
+                source = "TRADINGVIEW_PAPER"
 
         # Also create initial trade record in PENDING_EXECUTION
         trade_id = f"TRD-{signal_data['symbol']}-{now.replace(':', '').replace('-', '')[:15]}"
         cursor.execute("""
             INSERT INTO trades (
                 id, signal_id, symbol, direction, requested_entry, quantity,
-                stop_loss, take_profit, status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_EXECUTION', ?)
+                stop_loss, take_profit, status, trade_source, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_EXECUTION', ?, ?)
         """, (
             trade_id,
             signal_data["signal_id"],
@@ -102,6 +124,7 @@ class SignalManager:
             signal_data["quantity"],
             signal_data["stop_loss"],
             signal_data["take_profit"],
+            source,
             now
         ))
 
@@ -115,7 +138,8 @@ class SignalManager:
     def update_signal_status(signal_id: str, new_status: str, notes: Optional[str] = None):
         valid_statuses = [
             "GENERATED", "SENT_TO_EXTENSION", "PENDING_EXECUTION",
-            "EXECUTED", "EXECUTION_FAILED", "REJECTED", "CLOSED", "CANCELLED"
+            "EXECUTED", "EXECUTION_FAILED", "REJECTED", "CLOSED", "CANCELLED",
+            "EXECUTION_BLOCKED"
         ]
         if new_status not in valid_statuses:
             logger.warning(f"Invalid status {new_status} for signal {signal_id}")
@@ -149,3 +173,4 @@ class SignalManager:
                     pass
             results.append(d)
         return results
+

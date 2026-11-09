@@ -188,3 +188,4 @@ def evaluate_1h_market_structure(candles_1h: List[Dict[str, Any]]) -> Dict[str, 
         "latest_swing_high_info": latest_swing_high,
         "latest_swing_low_info": latest_swing_low
     }
+

@@ -24,11 +24,14 @@ def get_active_trades():
     return [dict(r) for r in rows]
 
 @router.get("/history")
-def get_trade_history(limit: int = 100, symbol: Optional[str] = None):
+def get_trade_history(limit: int = 100, symbol: Optional[str] = None, source: Optional[str] = "TRADINGVIEW_PAPER"):
     conn = get_db_connection()
     cursor = conn.cursor()
     query = "SELECT * FROM trades WHERE status = 'CLOSED'"
     params = []
+    if source and source.upper() != "ALL":
+        query += " AND trade_source = ?"
+        params.append(source.upper())
     if symbol:
         query += " AND symbol = ?"
         params.append(symbol.upper())
@@ -41,26 +44,40 @@ def get_trade_history(limit: int = 100, symbol: Optional[str] = None):
     return [dict(r) for r in rows]
 
 @router.get("/analytics")
-def get_performance_analytics():
+def get_performance_analytics(source: Optional[str] = "TRADINGVIEW_PAPER"):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("""
+    query = """
         SELECT t.*, s.signal_score 
         FROM trades t
         LEFT JOIN signals s ON t.signal_id = s.id
         WHERE t.status = 'CLOSED'
-    """)
+    """
+    params = []
+    if source and source.upper() != "ALL":
+        query += " AND t.trade_source = ?"
+        params.append(source.upper())
+
+    cursor.execute(query, tuple(params))
     trades = [dict(r) for r in cursor.fetchall()]
     conn.close()
 
+    selected_source = source.upper() if source else "TRADINGVIEW_PAPER"
     total_trades = len(trades)
     if total_trades == 0:
+        msg = (
+            "No verified TradingView Paper Trading history available."
+            if selected_source == "TRADINGVIEW_PAPER"
+            else f"No trade history available for source '{selected_source}'."
+        )
         return {
+            "source": selected_source,
+            "message": msg,
             "total_trades": 0,
             "winning_trades": 0,
             "losing_trades": 0,
             "win_rate_pct": 0.0,
-            "profit_factor": 0.0,
+            "profit_factor": "N/A",
             "total_gross_pnl": 0.0,
             "total_fees": 0.0,
             "net_pnl": 0.0,
@@ -81,7 +98,11 @@ def get_performance_analytics():
     fees = sum(t.get("trading_fees", 0.0) for t in trades)
 
     win_rate = (len(wins) / total_trades) * 100.0
-    profit_factor = round(total_win_dollars / total_loss_dollars, 2) if total_loss_dollars > 0 else (round(total_win_dollars, 2) if total_win_dollars > 0 else 0.0)
+    if total_loss_dollars > 0:
+        profit_factor = round(total_win_dollars / total_loss_dollars, 2)
+    else:
+        profit_factor = "N/A"
+
     avg_profit = (total_win_dollars / len(wins)) if wins else 0.0
     avg_loss = (total_loss_dollars / len(losses)) if losses else 0.0
 
@@ -155,3 +176,4 @@ async def trigger_kill_switch():
     log_system_event("SECURITY", "KILL SWITCH TRIGGERED: Emergency stop commanded by operator", severity="ERROR")
     await bridge.send_to_all({"type": "KILL_SWITCH", "action": "STOP_ALL_TRADING"})
     return {"status": "TRIGGERED", "message": "Emergency kill switch engaged. Orders halted."}
+

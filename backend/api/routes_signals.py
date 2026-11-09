@@ -24,3 +24,4 @@ async def dispatch_signal(signal_id: str):
     
     res = await bridge.dispatch_signal_to_extension(sig)
     return res
+

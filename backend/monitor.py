@@ -27,57 +27,76 @@ class PositionMonitor:
         }]
         """
         conn = get_db_connection()
-        cursor = conn.cursor()
-        now = datetime.now(timezone.utc).isoformat()
+        try:
+            cursor = conn.cursor()
+            now = datetime.now(timezone.utc).isoformat()
 
-        active_symbols = set()
-        for p in tv_positions:
-            sym = p.get("symbol")
-            if not sym:
-                continue
-            active_symbols.add(sym)
-            
-            # Find associated open trade
-            cursor.execute("SELECT id FROM trades WHERE symbol = ? AND status = 'OPEN' ORDER BY created_at DESC LIMIT 1", (sym,))
-            t_row = cursor.fetchone()
-            trade_id = t_row["id"] if t_row else f"TRD-{sym}-SYNC"
+            active_symbols = set()
+            for p in tv_positions:
+                sym = p.get("symbol")
+                if not sym:
+                    continue
+                active_symbols.add(sym)
+                
+                # Find associated open trade
+                cursor.execute("SELECT id FROM trades WHERE symbol = ? AND status = 'OPEN' ORDER BY created_at DESC LIMIT 1", (sym,))
+                t_row = cursor.fetchone()
+                if t_row:
+                    trade_id = t_row["id"]
+                else:
+                    trade_id = f"TRD-{sym}-SYNC"
+                    cursor.execute("""
+                        INSERT OR IGNORE INTO trades (id, symbol, direction, requested_entry, executed_entry, quantity, stop_loss, take_profit, status, created_at, executed_at, trade_source)
+                        VALUES (?, ?, 'BUY', ?, ?, ?, ?, ?, 'OPEN', ?, ?, 'TRADINGVIEW_PAPER')
+                    """, (
+                        trade_id,
+                        sym,
+                        float(p.get("avg_price", 0.0)),
+                        float(p.get("avg_price", 0.0)),
+                        float(p.get("quantity", 1.0)),
+                        float(p.get("stop_loss", 0.0)),
+                        float(p.get("take_profit", 0.0)),
+                        now,
+                        now
+                    ))
 
-            cursor.execute("""
-                INSERT INTO positions (symbol, trade_id, quantity, entry_price, current_price, unrealized_pnl, stop_loss, take_profit, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(symbol) DO UPDATE SET
-                    quantity = excluded.quantity,
-                    entry_price = excluded.entry_price,
-                    current_price = excluded.current_price,
-                    unrealized_pnl = excluded.unrealized_pnl,
-                    stop_loss = excluded.stop_loss,
-                    take_profit = excluded.take_profit,
-                    updated_at = excluded.updated_at
-            """, (
-                sym,
-                trade_id,
-                float(p.get("quantity", 1.0)),
-                float(p.get("avg_price", 0.0)),
-                float(p.get("current_price", 0.0)),
-                float(p.get("unrealized_pnl", 0.0)),
-                float(p.get("stop_loss", 0.0)),
-                float(p.get("take_profit", 0.0)),
-                now
-            ))
+                cursor.execute("""
+                    INSERT INTO positions (symbol, trade_id, quantity, entry_price, current_price, unrealized_pnl, stop_loss, take_profit, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(symbol) DO UPDATE SET
+                        quantity = excluded.quantity,
+                        entry_price = excluded.entry_price,
+                        current_price = excluded.current_price,
+                        unrealized_pnl = excluded.unrealized_pnl,
+                        stop_loss = excluded.stop_loss,
+                        take_profit = excluded.take_profit,
+                        updated_at = excluded.updated_at
+                """, (
+                    sym,
+                    trade_id,
+                    float(p.get("quantity", 1.0)),
+                    float(p.get("avg_price", 0.0)),
+                    float(p.get("current_price", 0.0)),
+                    float(p.get("unrealized_pnl", 0.0)),
+                    float(p.get("stop_loss", 0.0)),
+                    float(p.get("take_profit", 0.0)),
+                    now
+                ))
 
-        # Check for open DB positions that no longer exist on TradingView -> Closed!
-        cursor.execute("SELECT symbol, trade_id FROM positions")
-        existing_db_positions = cursor.fetchall()
-        for row in existing_db_positions:
-            s = row["symbol"]
-            trd_id = row["trade_id"]
-            if s not in active_symbols:
-                # Position disappeared from TradingView positions table!
-                logger.info(f"Position {s} no longer in TV open positions list. Resolving closure...")
-                self._handle_position_closure_by_disappearance(cursor, s, trd_id, now)
+            # Check for open DB positions that no longer exist on TradingView -> Closed!
+            cursor.execute("SELECT symbol, trade_id FROM positions")
+            existing_db_positions = cursor.fetchall()
+            for row in existing_db_positions:
+                s = row["symbol"]
+                trd_id = row["trade_id"]
+                if s not in active_symbols:
+                    # Position disappeared from TradingView positions table!
+                    logger.info(f"Position {s} no longer in TV open positions list. Resolving closure...")
+                    self._handle_position_closure_by_disappearance(cursor, s, trd_id, now)
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+        finally:
+            conn.close()
 
     def process_trade_closure_report(self, closure_report: Dict[str, Any]):
         """
@@ -216,3 +235,4 @@ class PositionMonitor:
 
 # Global monitor instance
 monitor = PositionMonitor()
+

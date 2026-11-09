@@ -79,3 +79,4 @@ const PositionTracker = {
 };
 
 window.PositionTracker = PositionTracker;
+

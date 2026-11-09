@@ -17,7 +17,14 @@ class HeartbeatModel(BaseModel):
     paper_trading_account_verified: bool = False
     current_symbol: Optional[str] = None
     broker_name: Optional[str] = None
+    account_state: Optional[str] = None
+    account_balance: Optional[float] = None
+    last_verified_at: Optional[str] = None
     error_message: Optional[str] = None
+    indicators: Optional[Dict[str, Any]] = None
+    raw_tv_symbol: Optional[str] = None
+    exchange: Optional[str] = None
+    username: Optional[str] = None
 
 class ExecutionConfirmationModel(BaseModel):
     signal_id: str
